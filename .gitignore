@@ -2,3 +2,4 @@ data/
 .venv/
 output/actions.csv.gz
 __pycache__/
+output/passes.csv.gz
