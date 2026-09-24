@@ -17,27 +17,22 @@
 \graphicspath{{../recalc/figures/}}
 \captionsetup{font=small,labelfont=bf}
 \renewcommand{\arraystretch}{1.12}
-\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \renewcommand{\tabularxcolumn}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 \input{generated/modelcheck_facts.tex}
 
 \title{\textbf{Passing networks and Poisson goals}\\[4pt]
 \large How far can probability and network theory go in analysing a football team?}
-\author{Shaimay Shah\\[2pt]
-\small Revised edition (2026) of an IB Mathematics Extended Essay (May 2018 session)}
-\date{}
+\author{Shaimay Shah}
+\date{2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
 \noindent
-This paper returns to the question I asked in my 2018 Extended Essay: \emph{how can the knowledge of probability and network theory help quantitatively and qualitatively analyse a football team?} I analyse the 2011 and 2015 UEFA Champions League finals, both won 3--1 by FC Barcelona. Passing data are modelled as weighted directed networks. I show that the 2018 centrality calculations treated the number of passes as a \emph{distance}, or ignored it entirely, and I redo them with the standard convention that more passes means a shorter distance. The corrected results reverse the original essay's main conclusion. Barcelona in 2011 were not an evenly spread passing team: 91\% of their betweenness belonged to three players, and removing Xavi alone would cut the team's passing efficiency by 14\%. I then extend the analysis with a player-removal (``red card'') test, community detection, comparisons with random networks and a bootstrap of the rankings. For the probability model, I fix an inconsistency in the league averages and remove the final itself from the data used to predict it. I then test the model on \nKO{} Champions League knockout matches. It forecasts no better than simply using the season's home, draw and away rates; adding home advantage, and fitting a Dixon--Coles model, both improve on it. Finally, event data from StatsBomb give players' real positions and the quality of every chance (expected goals, xG), which links the two halves of the essay. In 2011 Barcelona created 1.93 xG to Manchester United's 0.30, a performance that would win about 80\% of the time. In 2015, when Barcelona played through their right-hand side, the players at the centre of the passing network were also the players who built the chances.
+How can probability and network theory help analyse a football team, both in numbers and in words? I study the 2011 and 2015 UEFA Champions League finals, which FC Barcelona won 3--1 against Manchester United and Juventus. Each team's passing is modelled as a weighted, directed network, with distances equal to the reciprocal of the number of passes. Centrality measures, a player-removal (``red card'') test and community detection show that Barcelona in 2011 were a single tightly connected block built around Xavi. His removal alone would cut the team's passing efficiency by 14\%, and 91\% of the team's betweenness belonged to three players. In 2015 Barcelona had become a two-sided team built around Alves and Messi on the right. Comparisons with 1{,}000 random networks per team, and a bootstrap of the pass counts, separate genuine structure from noise. A Poisson attack--defence model of goals is derived from first principles and tested on \nKO{} Champions League knockout matches. On its own it forecasts no better than the season's home, draw and away rates; adding home advantage, and fitting a Dixon--Coles model, both improve it. Finally, StatsBomb event data place players at their real positions and measure the quality of every chance (expected goals, xG). Barcelona created 1.93 xG to 0.30 in 2011, a performance that wins about 80\% of the time. In 2015 the most central players in Barcelona's passing network were also the main builders of its chances. The two branches of mathematics are most useful together: network theory describes how a team plays, and probability, applied to chances rather than goals, measures how well it played.
 \end{abstract}
-
-\section*{Preface to this edition}
-I wrote the original essay when I was eighteen. Re-reading it, I found the idea sound but several calculations wrong. Mathematica's centrality functions use edge weights as lengths, so the heaviest passing links became the longest paths. The ``league average'' used for goals scored differed from the one used for goals conceded, which is impossible. The statistics used to predict each final also contained the final's own result. This edition keeps the research question and the two-part structure. It corrects every calculation, adds the tests the original essay called for but never carried out, and brings in better data. All numbers in the tables are produced by the code published alongside this paper, and Section~\ref{sec:reproducibility} explains how to rerun it. The recalculation and extension were carried out with the help of Claude, an AI assistant made by Anthropic.
 
 \tableofcontents
 \newpage
@@ -50,32 +45,25 @@ Football is the world's most watched sport, and for a long time it was one of th
 
 Two branches of mathematics fit this data naturally. \textbf{Network theory} treats players as nodes and passes as weighted, directed edges. Measures developed for social networks, the web and transport systems can then describe a team's structure: who the ball flows through, who is easy to reach, and which groups of players combine. \textbf{Probability} treats goals as rare, random events. A Poisson model then turns estimates of attacking and defensive strength into probabilities for every possible score.
 
-I apply both to two matches that make a useful pair: the Champions League finals of 2011 (Barcelona 3--1 Manchester United, at Wembley) and 2015 (Juventus 1--3 Barcelona, in Berlin). Barcelona won both 3--1, but they played very differently. The research question is unchanged from 2018:
+I apply both to two matches that make a natural pair: the Champions League finals of 2011 (Barcelona 3--1 Manchester United, at Wembley) and 2015 (Juventus 1--3 Barcelona, in Berlin). Barcelona won both 3--1, but they played very differently. The research question is:
 
 \begin{quote}
 \emph{How can the knowledge of probability and network theory help quantitatively and qualitatively analyse a football team?}
 \end{quote}
 
-\noindent Compared with the original essay, this edition:
-\begin{enumerate}
-  \item corrects the centrality calculations and shows exactly how the original values arose (Section~\ref{sec:2018});
-  \item adds team-level measures, a player-removal test and passing units (Sections~\ref{sec:team}--\ref{sec:units});
-  \item checks whether the network patterns could arise by chance, and how stable the player rankings are (Section~\ref{sec:significance});
-  \item corrects the Poisson model and tests it on \nKO{} matches instead of two (Sections~\ref{sec:poisson}--\ref{sec:test});
-  \item uses StatsBomb event data to place players at their real positions, split the matches by half, measure chance quality with expected goals and link the network to the chances created (Sections~\ref{sec:positions}--\ref{sec:link}).
-\end{enumerate}
+\noindent Section~\ref{sec:data} describes the data. Section~\ref{sec:networks} sets out the network measures and Section~\ref{sec:results} applies them. It tests whether the patterns could arise by chance and places players at their real positions on the pitch. Section~\ref{sec:poisson} derives the Poisson model, and Section~\ref{sec:test} tests it on \nKO{} matches. Section~\ref{sec:xg} measures the quality of chances with expected goals, and Section~\ref{sec:link} links the passing networks to the chances they produced.
 
 %=====================================================================
 \section{Data}\label{sec:data}
 %=====================================================================
 
-\paragraph{Passing tables (Opta).} The 2018 essay used Opta's passing data for the starting eleven of each team in each final: the number of completed passes from every player to every other player over the whole match. Substitutes are left out, so every network has the same eleven nodes. The four $11\times 11$ tables are reproduced in Appendix~\ref{app:matrices}.
+\paragraph{Passing tables (Opta).} For each team in each final, Opta's data give the number of completed passes from every starting player to every other starting player over the whole match. Substitutes are left out, so every network has the same eleven nodes. In these finals no substitution was made before the 69th minute. The four $11\times 11$ tables are in Appendix~\ref{app:matrices}.
 
-\paragraph{Event data (StatsBomb).} StatsBomb's free Open Data release \cite{statsbomb} includes both finals. It records every on-ball event: over 1{,}200 passes in the 2011 final and almost 1{,}000 in 2015, each with a location, recipient and outcome, as well as every shot with its expected-goals value. I use it to check the Opta tables, to find the players' real positions and to measure the quality of the chances.
+\paragraph{Event data (StatsBomb).} StatsBomb's free Open Data release \cite{statsbomb} includes both finals. It records every on-ball event: over 1{,}200 passes in the 2011 final and almost 1{,}000 in 2015, each with a location, recipient and outcome, as well as every shot with its expected-goals value. I use it to check the Opta tables, to find players' real positions and to measure the quality of the chances.
 
-\paragraph{Results (openfootball).} To test the probability model on more than two matches, I use every Champions League result from 2011/12 to 2023/24, taken from the public-domain openfootball dataset \cite{openfootball}. These are \nSeasons{} seasons with 96 group-stage matches and 23--29 knockout matches each. The 2010/11 season is not in this dataset.
+\paragraph{Results (openfootball).} To test the probability model on more than two matches, I use every Champions League result from 2011/12 to 2023/24, taken from the public-domain openfootball dataset \cite{openfootball}. These are \nSeasons{} seasons with 96 group-stage matches and 23--29 knockout matches each.
 
-\paragraph{Do the sources agree?} Table~\ref{tab:sbcheck} compares the Opta tables used in 2018 with the same passes counted from StatsBomb's events. The totals differ by at most nine passes. Across all 110 possible passing links, the correlation is at least 0.98 for three teams and 0.92 for Juventus. The original data were therefore transcribed accurately, and none of the corrections below come from bad data.
+\paragraph{Do the sources agree?} Table~\ref{tab:sbcheck} compares the Opta tables with the same passes counted from StatsBomb's events. The totals differ by at most nine passes. Across all 110 possible passing links, the correlation is at least 0.98 for three teams and 0.92 for Juventus. Two independent data providers therefore give almost the same networks, and every player ranking in this paper is the same whichever source is used.
 
 \input{generated/sb_check.tex}
 
@@ -89,28 +77,28 @@ A team's passing in a match is represented by a \textbf{weighted directed graph}
 \[
 A_{xy} = \text{number of completed passes from player } x \text{ to player } y, \qquad A_{xx} = 0 .
 \]
-The graph is directed because $A_{xy}$ and $A_{yx}$ usually differ: goalkeepers pass far more to centre-backs than centre-backs pass back. The weight of the edge $x\to y$ measures the \emph{strength} of the link. The total number of passes a player makes, $L^{\text{out}}_x = \sum_y A_{xy}$, is their \textbf{out-strength}. Figure~\ref{fig:networks} draws the four networks with players at their positions in each team's formation.
+The graph is directed because $A_{xy}$ and $A_{yx}$ usually differ: goalkeepers pass far more to centre-backs than centre-backs pass back. The weight of the edge $x\to y$ measures the \emph{strength} of the link. The total number of passes a player makes, $L^{\text{out}}_x = \sum_y A_{xy}$, is their \textbf{out-strength}. Figure~\ref{fig:networks} draws the four networks, with players placed according to their team's formation.
 
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{all_networks.pdf}
-\caption{The four passing networks (Opta), redrawn from the 2018 essay. Arrow width is proportional to the number of passes; circle size shows weighted PageRank. The original figures scaled arrow thickness with the \emph{square} of the number of passes, which turned Barcelona's midfield into solid black shapes. Here the scale is linear and the same for all four teams.}
+\caption{The four passing networks (Opta), with players placed by formation and the goalkeeper at the bottom. Arrow width is proportional to the number of passes, on the same scale for all four teams; circle size shows weighted PageRank (Section~\ref{sec:measures}).}
 \label{fig:networks}
 \end{figure}
 
 \subsection{Strength and distance}\label{sec:distance}
 
-Several measures rely on \textbf{shortest paths} (geodesics): the cheapest route for the ball from one player to another. For that we need the \emph{length} of each edge. A link used 30 times should be \emph{shorter} than a link used twice, because the ball travels along it easily. The standard choice, and the one used by L\'opez Pe\~na and Touchette \cite{pena} whose method the 2018 essay followed, is
+Several measures rely on \textbf{shortest paths} (geodesics): the cheapest route for the ball from one player to another. For that we need the \emph{length} of each edge. A link used 30 times should be \emph{shorter} than a link used twice, because the ball travels along it easily. Following L\'opez Pe\~na and Touchette \cite{pena}, I use
 \[
 d_{xy} = \frac{1}{A_{xy}} \qquad (A_{xy} > 0),
 \]
 and the length of a path is the sum of the lengths of its edges. The geodesic distance $D_{xy}$ is the length of the shortest path from $x$ to $y$.
 
-Figure~\ref{fig:toy} shows why this matters. Player A passes to B 30 times, and passes to B via C only twice on each leg. If the number of passes is used as the length, the direct route costs $30$ and the detour costs $2+2=4$. The ``shortest'' path then avoids the busiest link in the team, and C is credited with holding the team together. With $d = 1/A$, the direct route costs $1/30 \approx 0.03$ against $1/2+1/2 = 1$ for the detour, which is the sensible answer.
+This choice matters. Many software packages treat an edge weight as a length by default, and feeding them the number of passes directly turns the network upside down. Figure~\ref{fig:toy} gives an example. Player A passes to B 30 times, and passes to B via C only twice on each leg. With length equal to the number of passes, the direct route costs $30$ and the detour costs $2+2=4$. The ``shortest'' path then avoids the busiest link in the team, and C is credited with holding the team together. With $d = 1/A$, the direct route costs $1/30 \approx 0.03$ against $1/2+1/2 = 1$ for the detour, which is the sensible answer.
 
 \begin{figure}[t]
 \centering
-\begin{tikzpicture}[>={Stealth[length=2.2mm]}, node distance=2.4cm,
+\begin{tikzpicture}[>={Stealth[length=2.2mm]},
   every node/.style={circle, draw=black!70, fill=black!5, minimum size=8mm, font=\small}]
   \node (A) {A};
   \node (B) [right=4.6cm of A] {B};
@@ -119,17 +107,17 @@ Figure~\ref{fig:toy} shows why this matters. Player A passes to B 30 times, and 
   \draw[->, line width=0.7pt, black!55] (A) -- node[above left, draw=none, fill=none, font=\footnotesize] {2} (C);
   \draw[->, line width=0.7pt, black!55] (C) -- node[above right, draw=none, fill=none, font=\footnotesize] {2} (B);
 \end{tikzpicture}
-\caption{Treating passes as distances turns the network upside down. With length $=$ passes, the shortest route from A to B goes through C ($2+2 < 30$). With length $= 1/\text{passes}$ it is the direct link ($1/30 < 1/2 + 1/2$).}
+\caption{Why distance must be the reciprocal of the number of passes. With length $=$ passes, the shortest route from A to B goes through C ($2+2 < 30$). With length $= 1/\text{passes}$ it is the direct link ($1/30 < 1/2 + 1/2$).}
 \label{fig:toy}
 \end{figure}
 
-\subsection{Player measures}
+\subsection{Player measures}\label{sec:measures}
 
 \paragraph{Betweenness centrality} measures how much of the ball's flow between other players depends on player $x$ \cite{freeman, brandes}:
 \[
 C_B(x) = \frac{1}{(N-1)(N-2)} \sum_{y \ne x \ne z} \frac{n^x_{yz}}{g_{yz}},
 \]
-where $g_{yz}$ is the number of geodesics from $y$ to $z$ and $n^x_{yz}$ the number of those passing through $x$. With $N = 11$ the normalising factor is $1/90$, so $0 \le C_B(x) \le 1$. A high value means that isolating the player (by marking, or a red card) would disrupt the team's passing.
+where $g_{yz}$ is the number of geodesics from $y$ to $z$ and $n^x_{yz}$ the number of those passing through $x$. With $N = 11$ the normalising factor is $1/90$, so $0 \le C_B(x) \le 1$. A high value means that isolating the player, by close marking or a red card, would disrupt the team's passing.
 
 \paragraph{Closeness centrality} is the reciprocal of a player's average geodesic distance to the others:
 \[
@@ -141,17 +129,17 @@ Because distances are measured in units of $1/\text{passes}$, closeness is measu
 \[
 x_i = \frac{1-p}{N} + p \sum_{j} \frac{A_{ji}}{L^{\text{out}}_j}\, x_j , \qquad \sum_i x_i = 1,
 \]
-with $p = 0.85$. $x_i$ can be read as the long-run share of time the ball spends with player $i$ if it follows passes at random, with probability $1-p$ of restarting from a random player. (The 2018 essay wrote $A_{xy}$ in place of $A_{ji}$, which runs the passes the wrong way.)
+with $p = 0.85$. $x_i$ can be read as the long-run share of time the ball spends with player $i$ if it follows passes at random, with probability $1-p$ of restarting from a random player.
 
-\paragraph{Weighted clustering} measures how often a player's passing partners also pass to each other, forming triangles. For directed weighted graphs I use Fagiolo's generalisation \cite{fagiolo} of the Onnela et al.\ formula \cite{onnela} quoted in 2018:
+\paragraph{Weighted clustering} measures how often a player's passing partners also pass to each other, forming triangles. For directed weighted graphs I use Fagiolo's generalisation \cite{fagiolo} of the formula of Onnela et al.\ \cite{onnela}:
 \[
 c^w_i = \frac{\big[(\hat W^{1/3} + (\hat W^{T})^{1/3})^3\big]_{ii}}{2\big[k_i(k_i-1) - 2k^{\leftrightarrow}_i\big]}, \qquad \hat W = \frac{A}{\max A},
 \]
-where the powers $1/3$ are taken entry by entry, $k_i$ is the number of distinct players $i$ passes to or receives from (counting each direction), and $k^{\leftrightarrow}_i$ the number of two-way links. Dividing by $\max A$ means only triangles of heavy links score highly. The 2018 formula divided by the number of passes where it needed the number of links.
+where the powers $1/3$ are taken entry by entry, $k_i$ is the number of links (in either direction) between $i$ and other players, and $k^{\leftrightarrow}_i$ the number of two-way links. Dividing by $\max A$ means only triangles of heavy links score highly.
 
 \subsection{Team measures}\label{sec:teamdefs}
 
-The 2018 methodology promised ``global network invariants'' for the team as a whole but never calculated any. I use the following.
+To describe a team as a whole I use the following measures.
 \begin{itemize}
 \item \textbf{Density}: the share of the $N(N-1) = 110$ possible links used at least once.
 \item \textbf{Reciprocity}: $\sum_{x,y}\min(A_{xy},A_{yx}) / \sum_{x,y} A_{xy}$, the share of passes that were returned along the same link.
@@ -161,39 +149,27 @@ The 2018 methodology promised ``global network invariants'' for the team as a wh
 \item \textbf{Modularity} \cite{newman}: how well the team splits into ``passing units'' that pass mainly among themselves (Section~\ref{sec:units}).
 \end{itemize}
 
-\subsection{A note on the 2018 calculations}\label{sec:2018}
-
-All four 2018 measures were computed with Mathematica's built-in functions. I can reproduce every published value from the passing tables, and doing so shows exactly what went wrong (Table~\ref{tab:reproduction}):
-\begin{itemize}
-\item \textbf{Closeness} matches to three decimal places when the number of passes is used as the \emph{distance}. The busiest players therefore looked the most distant. Xavi and Busquets came out least central, and the essay concluded that Barcelona ``isn't extremely well connected''.
-\item \textbf{Betweenness} and \textbf{PageRank} match exactly when the weights are \emph{ignored}. One pass counted the same as 33, and the values were not normalised by $1/90$ as the essay's formula stated.
-\item \textbf{Clustering} is close to, but does not exactly match, an unweighted calculation.
-\end{itemize}
-In other words, the pass counts entered the pictures but hardly entered the mathematics. Everything that follows uses the corrected definitions.
-
-\input{generated/reproduction.tex}
-
 %=====================================================================
 \section{Results: the passing networks}\label{sec:results}
 %=====================================================================
 
 \subsection{Players}
 
-Table~\ref{tab:centralities} lists the corrected measures for every player. Three results stand out.
+Table~\ref{tab:centralities} lists the measures for every player. Three patterns stand out.
 
-\textbf{Barcelona 2011 ran through Xavi.} Xavi has the highest betweenness (0.567), closeness, PageRank and clustering in his team. Only four Barcelona players have any betweenness at all. The top three by PageRank are Xavi, Iniesta and Messi. This is the trio the 2018 essay, from the pictures alone, suggested Manchester United should have tried to isolate.
+\textbf{Barcelona 2011 ran through Xavi.} Xavi has the highest betweenness (0.567), closeness, PageRank and clustering in his team. Only four Barcelona players have any betweenness at all: Xavi, Mascherano, Iniesta and Messi. By PageRank the top three are Xavi, Iniesta and Messi, the midfield triangle that dominates Figure~\ref{fig:networks}.
 
-\textbf{Manchester United's play ran from centre-back to striker.} Ferdinand has the highest betweenness and closeness, and Rooney the highest PageRank. This is the long-ball route from defence to attack visible in Figure~\ref{fig:networks}. The 2018 essay named Giggs, Carrick, Valencia and Rooney as United's ``backbone''. The corrected numbers keep Rooney and Giggs but replace Carrick and Valencia with Ferdinand.
+\textbf{Manchester United's play ran from centre-back to striker.} Ferdinand has the highest betweenness and closeness, and Rooney the highest PageRank. This is the route from defence to attack visible in Figure~\ref{fig:networks}, with many of the passes going long. Giggs is the only midfielder close to them.
 
-\textbf{In 2015 Barcelona's centre moved to the right flank.} Alves and Messi top both betweenness and PageRank. The 2018 essay argued for a shift ``from control in the midfield to playing through the wings'' using \emph{Juventus's} PageRank scores. That comparison is invalid, because PageRank sums to one within each team. Barcelona's own numbers now support the claim directly. For Juventus, Pirlo has the highest betweenness, closeness and PageRank, followed by Marchisio and Vidal. The 2018 conclusion that the defenders Bonucci and Lichtsteiner were the key players, and that Juventus were therefore ``on the back foot'', does not survive the correction.
+\textbf{In 2015 Barcelona's centre was on the right flank.} Alves and Messi top both betweenness and PageRank. The right-back and the right-sided forward had become the hub of the team, where four years earlier it had been the central midfield. For Juventus, Pirlo has the highest betweenness, closeness and PageRank, followed by Marchisio and Vidal: their play ran through the centre.
 
 \input{generated/centralities.tex}
 
 \subsection{Teams}\label{sec:team}
 
-Table~\ref{tab:global} summarises each team in single numbers. Barcelona 2011 stands out. Its betweenness centralisation is 0.53, against about 0.19 for the other three teams, and its involvement inequality is the highest. Its low modularity says it played as one connected block rather than in separate units. It also made more than 2.5 times as many passes as United.
+Table~\ref{tab:global} summarises each team in single numbers. Barcelona 2011 stands out. Its betweenness centralisation is 0.53, against about 0.19 for the other three teams, and 91\% of its betweenness belongs to three players. It also has the most unequal involvement: Xavi was part of 39\% of the team's passes. Its low modularity says it played as one connected block rather than in separate units. It made more than 2.5 times as many passes as United.
 
-This reverses the central claim of the 2018 essay, that Barcelona had ``a low and consistent betweenness score which implies that there is less reliance on individual skill''. Barcelona 2011 was the \emph{most} dependent of the four teams on a single player. That dependence was on a midfielder who touched the ball constantly, not on one who dribbled past people.
+So the Barcelona of 2011 was the \emph{most} dependent of the four teams on a single player. That player was not a dribbler or a goalscorer, but a midfielder who touched the ball constantly. A team can look collective, with every player passing, while its structure still depends on one hub.
 
 \input{generated/global.tex}
 
@@ -205,7 +181,7 @@ Betweenness only counts shortest paths. A more direct question is: \emph{how muc
 \]
 Averaging over the same pairs in both cases means $\Delta_x \ge 0$, and it measures only $x$'s role as a link. The same calculation removes pairs and trios. Table~\ref{tab:redcard} and Figure~\ref{fig:redcard} show the results.
 
-Removing Xavi costs Barcelona 2011 14\% of its efficiency. No other player in that team is above 3\%. The trio the 2018 essay suggested isolating (Xavi, Iniesta, Messi) causes a \input{generated/trio_rank.tex}\unskip. That is a good choice, but Xavi, Busquets and Iniesta does more damage (31\%). For the other teams the dependence is spread more evenly. Barcelona 2015 relied most on the right-back Alves (7\%). Juventus relied equally on Pirlo and Vidal.
+Removing Xavi costs Barcelona 2011 14\% of its efficiency. No other player in that team is above 3\%. The most damaging trio is Xavi, Busquets and Iniesta (31\%). The midfield triangle of Xavi, Iniesta and Messi causes a \input{generated/trio_rank.tex}\unskip. For an opponent, the lesson is clear: stop Xavi, and the rest matters much less. For the other teams the dependence is spread more evenly. Barcelona 2015 relied most on the right-back Alves (7\%), and Juventus relied equally on Pirlo and Vidal (4\% each).
 
 \input{generated/redcard.tex}
 
@@ -224,7 +200,7 @@ Q = \frac{1}{2m}\sum_{x,y}\Big(w_{xy} - \frac{s_x s_y}{2m}\Big)\,\delta(c_x, c_y
 \]
 where $w_{xy} = A_{xy} + A_{yx}$, $s_x$ is player $x$'s total passes, $2m = \sum_{x,y} w_{xy}$ and $\delta(c_x,c_y) = 1$ if $x$ and $y$ are in the same group. The maximisation uses the Louvain algorithm \cite{louvain}, keeping the best of 20 runs. Table~\ref{tab:units} lists the groups.
 
-Barcelona 2011 has almost no structure ($Q = 0.056$). Six players (Alves, Busquets, Xavi, Iniesta, Messi and Villa) form a single unit. The centre-backs and goalkeeper form a second group, and Abidal and Pedro a small left-sided pair. Barcelona 2015 splits clearly into a right side (Alves, Busquets, Rakiti\'c, Messi, Su\'arez) and a left side (Alba, Iniesta, Mascherano, Neymar). This is the most direct evidence for the change in style between the two finals. Manchester United divide into a left-sided and attacking group (Evra, Park, Giggs, Carrick, Rooney, Hern\'andez) and a right-sided and defensive group (Van der Sar, the centre-backs, F\'abio and Valencia). This fits both their long passes forward and Valencia's deep position (Section~\ref{sec:positions}).
+Barcelona 2011 has almost no structure ($Q = 0.056$). Six players (Alves, Busquets, Xavi, Iniesta, Messi and Villa) form a single unit. The centre-backs and goalkeeper form a second group, and Abidal and Pedro a small left-sided pair. Barcelona 2015 splits clearly into a right side (Alves, Busquets, Rakiti\'c, Messi, Su\'arez) and a left side (Alba, Iniesta, Mascherano, Neymar). This is the clearest single measure of the change in style between the two finals. Manchester United divide into a left-sided and attacking group (Evra, Park, Giggs, Carrick, Rooney, Hern\'andez) and a right-sided and defensive group (Van der Sar, the centre-backs, F\'abio and Valencia). This fits both their long passes forward and Valencia's deep position (Section~\ref{sec:positions}).
 
 \input{generated/units.tex}
 
@@ -242,13 +218,13 @@ Table~\ref{tab:null} gives the results as $z$-scores. Three findings are clear. 
 
 \subsection{Real positions}\label{sec:positions}
 
-The 2018 networks placed players at fixed positions in their formation, a limitation the essay noted itself. StatsBomb's event data let each player be placed at the average location of their passes and receptions (Figure~\ref{fig:sbnetworks}). Several things become visible that a formation diagram hides:
+Placing players by formation is a simplification: footballers move constantly. StatsBomb's event data let each player be placed at the average location of their passes and receptions (Figure~\ref{fig:sbnetworks}). Several things become visible that a formation diagram hides:
 \begin{itemize}
 \item Barcelona 2011 squeezed into a compact block in the opponent's half, with both full-backs level with the halfway line.
-\item Manchester United's right winger Valencia played almost exactly level with right-back F\'abio, in effect as a second full-back. StatsBomb records United's shape as 4-2-2-2, not the 4-4-2 used in 2018.
+\item Manchester United's right winger Valencia played almost exactly level with right-back F\'abio, in effect as a second full-back. StatsBomb records United's shape as 4-2-2-2.
 \item Barcelona 2015 is visibly split into the left and right units found in Section~\ref{sec:units}, with Busquets between them.
 \end{itemize}
-Because the StatsBomb passing counts match Opta so closely (Table~\ref{tab:sbcheck}), every player ranking in this section is unchanged when recalculated from StatsBomb data.
+Every player ranking in this section is unchanged when recalculated from the StatsBomb passes.
 
 \begin{figure}[p]
 \centering
@@ -305,19 +281,17 @@ P(\text{score } a\text{--}b) = \frac{\lambda_B^a e^{-\lambda_B}}{a!}\cdot\frac{\
 P(\text{win}) = \sum_{a > b} P(a\text{--}b).
 \]
 
-\subsection{Two corrections}\label{sec:corrections}
-
-\paragraph{One league average.} The 2018 essay used $\bar g = 1.31$ for goals scored and 1.59 for goals conceded (2010/11), and 1.33 and 1.58 (2014/15). This cannot be right. Every goal is scored by exactly one team and conceded by exactly one team, so over a whole competition
+\paragraph{One league average.} It might seem natural to use one average for goals scored and another for goals conceded. They are always the same. Every goal is scored by exactly one team and conceded by exactly one team, so over a whole competition
 \[
-\sum_{\text{teams}} \text{goals scored} = \sum_{\text{teams}} \text{goals conceded},
+\sum_{\text{teams}} \text{goals scored} = \sum_{\text{teams}} \text{goals conceded}.
 \]
-and the two averages must be equal. From the group stage onwards both seasons had 125 matches, with 355 goals in 2010/11 and 361 in 2014/15. That gives $\bar g = 355/250 = 1.42$ and $361/250 = 1.44$ (version~A in Table~\ref{tab:poisson-finals}).
+From the group stage onwards both seasons had 125 matches, with 355 goals in 2010/11 and 361 in 2014/15. That gives $\bar g = 355/250 = 1.42$ and $361/250 = 1.44$.
 
-\paragraph{Do not use the result to predict itself.} The 2018 per-game figures are exact fractions of 13 games. For example, Barcelona's 2.31 goals per game in 2010/11 is $30/13$. So they include the final being predicted. Removing the final (3--1 in both years) leaves 12 games per finalist (version~B). In 2010/11 United had conceded only 4 goals in 12 games before the final, giving a defensive weakness of $\delta = 0.24$. Barcelona's expected goals then fall to 0.53, and the model makes United slight favourites (35\% against 24\%). In 2015, Barcelona remain favourites (38\% against 28\%). The 2018 model's apparent good sense came partly from already knowing the score.
+\paragraph{Only use information available before the match.} A forecast must not contain the result it is forecasting. Each finalist played 13 games from the group stage onwards, the last being the final itself. Table~\ref{tab:poisson-finals} shows the model both ways. Estimated from 13 games, Barcelona look clear favourites in 2011 (37\% against 28\%). Estimated only from the 12 games before the final, the picture changes. United had conceded only 4 goals in those 12 games, a defensive weakness of $\delta = 0.24$, so Barcelona's expected goals fall to 0.53, and the model makes United slight favourites (35\% against 24\%). In 2015 Barcelona remain favourites either way (38\% against 28\% before the final). Letting the result leak into the data made the model look better than it was.
 
 \input{generated/poisson_finals.tex}
 
-The probability of the exact score 3--1 is small in every version: between 0.5\% and 3.4\%. That is not evidence against the model on its own. Even the most likely score (0--0 in version B, both years) has a probability of only 18--29\%. A model has to be judged on many matches, which the next section does.
+The probability of the exact score 3--1 is small in every version: between 0.5\% and 3.4\%. That is not evidence against the model on its own. Even the most likely score (0--0 in the pre-match forecast, both years) has a probability of only 18--29\%. A model has to be judged on many matches, which the next section does.
 
 %=====================================================================
 \section{Testing the model}\label{sec:test}
@@ -325,16 +299,17 @@ The probability of the exact score 3--1 is small in every version: between 0.5\%
 
 \subsection{Method}
 
-Two finals cannot tell us whether the model works. I therefore predicted all \nKO{} knockout matches in \nSeasons{} Champions League seasons (2011/12--2023/24). Each prediction used only the results of that season played before the match: the group stage plus any earlier knockout games. The outcome is the result after 90 minutes: \nHome{} home wins, \nDraw{} draws and \nAway{} away wins. Finals, and the single-venue ties of 2019/20, are treated as neutral. Five forecasts are compared:
+I predicted all \nKO{} knockout matches in \nSeasons{} Champions League seasons (2011/12--2023/24). Each prediction used only the results of that season played before the match: the group stage plus any earlier knockout games. The outcome is the result after 90 minutes: \nHome{} home wins, \nDraw{} draws and \nAway{} away wins. Finals, and the single-venue ties of 2019/20, are treated as neutral. Five forecasts are compared:
 \begin{enumerate}
 \item \textbf{Guess}: $1/3$ each for home win, draw and away win.
 \item \textbf{Base rates}: the proportions of home wins, draws and away wins so far that season.
-\item \textbf{The essay's model}, with the corrections of Section~\ref{sec:corrections}.
-\item \textbf{The essay's model with home advantage}: $\bar g$ replaced by the average goals of home teams (for the home side) and of away teams (for the away side).
+\item \textbf{The basic Poisson model} of Section~\ref{sec:poisson}.
+\item \textbf{The basic Poisson model with home advantage}: $\bar g$ replaced by the average goals of home teams (for the home side) and of away teams (for the away side).
 \item \textbf{A fitted Dixon--Coles model} \cite{dixoncoles}: $\log\lambda_{\text{home}} = \mu + h + a_i - d_j$ and $\log\lambda_{\text{away}} = \mu + a_j - d_i$, with attack $a$, defence $d$ and home advantage $h$ estimated by maximum likelihood. Because each team has only 6--12 earlier matches, the estimates are shrunk towards average by a normal prior with standard deviation 0.3. A correction factor $\tau$ adjusts the probabilities of 0--0, 1--0, 0--1 and 1--1, which plain Poisson models are known to get wrong:
 \[
-\tau(0,0) = 1-\lambda\mu\rho,\quad \tau(0,1) = 1+\lambda\rho,\quad \tau(1,0) = 1+\mu\rho,\quad \tau(1,1) = 1-\rho .
+\tau(0,0) = 1-\lambda\mu\rho,\quad \tau(0,1) = 1+\lambda\rho,\quad \tau(1,0) = 1+\mu\rho,\quad \tau(1,1) = 1-\rho ,
 \]
+where $\lambda$ and $\mu$ here are the home and away expected goals and $\rho$ is estimated with the other parameters.
 \end{enumerate}
 
 Forecasts are scored with the \textbf{ranked probability score} \cite{epstein, constantinou}, the standard measure for football, together with log loss and the Brier score. For forecast probabilities $(p_1,p_2,p_3)$ of home win, draw and away win, and the outcome $(o_1,o_2,o_3)$, one of which is 1,
@@ -349,12 +324,12 @@ It is lower for better forecasts, and it rewards a forecast that is ``close'': p
 
 Table~\ref{tab:modelcheck} gives the results, with 95\% bootstrap intervals for the differences.
 \begin{itemize}
-\item \textbf{The essay's model is no better than the base rates.} Its mean RPS is slightly \emph{worse}, although the interval includes zero. Knowing only how often home teams usually win beats it.
-\item \textbf{Home advantage is the biggest missing ingredient.} Adding it improves the essay's model clearly (the interval excludes zero).
-\item \textbf{A fitted model does better still.} Dixon--Coles beats the base rates and the essay's model with home advantage, with both intervals excluding zero. The favourite won 53\% of the time under Dixon--Coles, against 47\% for the essay's model.
+\item \textbf{The basic Poisson model is no better than the base rates.} Its mean RPS is slightly \emph{worse}, although the interval includes zero. Knowing only how often home teams usually win beats it.
+\item \textbf{Home advantage is the biggest missing ingredient.} Adding it improves the basic model clearly (the interval excludes zero).
+\item \textbf{A fitted model does better still.} Dixon--Coles beats the base rates and the basic model with home advantage, with both intervals excluding zero. The favourite won 53\% of the time under Dixon--Coles, against 47\% for the basic model.
 \end{itemize}
 
-Figure~\ref{fig:calibration} shows why the essay's model struggles. It is \textbf{overconfident}. When it gave the home team about a 10\% chance, home teams actually won a third of the time. When it predicted a draw at over 40\%, fewer than one in ten of those matches were draws. Estimating team strengths from goals alone, from so few games, produces extreme values of $\alpha$ and $\delta$, just as United's $\delta = 0.24$ did in 2011. On average all three Poisson models predict more draws (\drawEssay{} for the essay's model, \drawDC{} for Dixon--Coles) than the \drawActual{} observed. That fits the idea that teams in two-legged knockout ties play for a result over the two legs, not for a draw in one match.
+Figure~\ref{fig:calibration} shows why the basic model struggles. It is \textbf{overconfident}. When it gave the home team about a 10\% chance, home teams actually won a third of the time. When it predicted a draw at over 40\%, fewer than one in ten of those matches were draws. Estimating team strengths from goals alone, from so few games, produces extreme values of $\alpha$ and $\delta$, just as United's $\delta = 0.24$ did in 2011. On average all three Poisson models predict more draws (\drawBasic{} for the basic model, \drawDC{} for Dixon--Coles) than the \drawActual{} observed. That fits the idea that teams in two-legged knockout ties play for a result over the two legs, not for a draw in one match.
 
 \begin{figure}[t]
 \centering
@@ -380,15 +355,15 @@ To turn chances into result probabilities, I treat each attacking possession as 
 \label{fig:xg}
 \end{figure}
 
-The two finals look very different (Table~\ref{tab:xg}, Figure~\ref{fig:xg}). In 2011, Barcelona out-shot United 22 to 4 and created 1.93 xG to 0.30. United's goal came from one of only four shots. Given those chances Barcelona win 80\% of the time. Their dominance of the ball, which the networks show, turned directly into chances. The pre-match Poisson model, working only from goals in earlier games, gave Barcelona 24\%.
+The two finals look very different (Table~\ref{tab:xg}, Figure~\ref{fig:xg}). In 2011, Barcelona out-shot United 22 to 4 and created 1.93 xG to 0.30. United's goal came from one of only four shots. Given those chances Barcelona win 80\% of the time. Their dominance of the ball, which the networks show, turned directly into chances. The pre-match Poisson forecast, working only from goals in earlier games, gave Barcelona 24\%.
 
-The 2015 final was closer: 2.27 xG to 1.38, and a 59\% chance of a Barcelona win. Rakiti\'c scored in the fourth minute. Morata's equaliser came from a 0.60 xG chance early in the second half, during the spell when Juventus took over the ball (Table~\ref{tab:halves}). Su\'arez restored the lead after 68 minutes, and Neymar scored in stoppage time. Here the Poisson and xG views agree more closely (38\% and 59\%), but only xG sees how the match unfolded.
+The 2015 final was closer: 2.27 xG to 1.38, and a 59\% chance of a Barcelona win. Rakiti\'c scored in the fourth minute. Morata's equaliser came from a 0.60 xG chance early in the second half, during the spell when Juventus took over the ball (Table~\ref{tab:halves}). Su\'arez restored the lead after 68 minutes, and Neymar scored in stoppage time. Here the pre-match forecast and the chances agree more closely (38\% and 59\%), but only xG shows how the match unfolded.
 
 %=====================================================================
 \section{Linking the network to the chances}\label{sec:link}
 %=====================================================================
 
-The 2018 essay argued that the network analysis could explain the probability model's results, but it never connected the two. Event data make that connection possible. For each player I compute:
+If passing networks describe how a team plays, they should say something about how it creates chances. Event data make this testable. For each player I compute:
 \begin{itemize}
 \item \textbf{xGChain}: the total xG of every shot-ending possession the player was involved in;
 \item \textbf{xGBuildup}: the same, but leaving out possessions in which the player took the shot or played the final pass. This measures contribution to the \emph{build-up}.
@@ -397,7 +372,7 @@ If the passing network captures something real, the most central passers should 
 
 \input{generated/sb_chain.tex}
 
-For Barcelona in 2015 the link is clear ($\rho = 0.65$, $p = 0.03$). Alves and Messi, the two most central players in the network, were also the two leading builders of chances. The right-sided play found in the network turned into chances. For Barcelona in 2011 the correlation is weaker (0.31). Busquets and Abidal contributed more to the build-up of chances than their network positions suggest, while Xavi, the network's hub, is third. For Juventus there is no relationship. Almost all of their build-up passed through Marchisio, who was not their most central passer. With eleven players per team, these correlations are only suggestive, but they are the first direct test of the claim that a team's passing structure explains its attacking output.
+For Barcelona in 2015 the link is clear ($\rho = 0.65$, $p = 0.03$). Alves and Messi, the two most central players in the network, were also the two leading builders of chances. The right-sided play found in the network turned into chances. For Barcelona in 2011 the correlation is weaker (0.31). Busquets and Abidal contributed more to the build-up of chances than their network positions suggest, while Xavi, the network's hub, is third. For Juventus there is no relationship. Almost all of their build-up passed through Marchisio, who was not their most central passer. With eleven players per team, these correlations are only suggestive, but they are a direct test of whether a team's passing structure explains its attacking output.
 
 %=====================================================================
 \section{Limitations}\label{sec:limitations}
@@ -407,9 +382,9 @@ For Barcelona in 2015 the link is clear ($\rho = 0.65$, $p = 0.03$). Alves and M
 \item \textbf{Two matches.} The network results describe two finals and four team performances. They illustrate what the methods can show; they do not establish general laws about Barcelona or about football.
 \item \textbf{Whole-match networks.} Aggregating over 90 minutes hides changes of tactics and game state. The half-by-half split is a first step; a finer split, for example into ten-minute windows or before and after each goal, would need more careful handling of small numbers.
 \item \textbf{Completed passes only.} Failed passes, carries and dribbles are not in the networks. Nor is the opponent: a pass under pressure counts the same as an easy one.
-\item \textbf{Starters only.} Substitutes are excluded, as in 2018. In these finals no substitution was made before the 69th minute, so the effect is small.
+\item \textbf{Starters only.} Substitutes are excluded. Because no substitution came before the 69th minute, the effect is small.
 \item \textbf{The random-network baseline ignores the pitch.} A goalkeeper is as likely to pass to a striker as to a centre-back. Any real team will look unusually structured against it. A stricter baseline would keep players' positions.
-\item \textbf{Small samples for the probability model.} Team strengths come from 6--12 earlier games. This is why the essay's model is overconfident, and it limits any model based on goals. Shots or xG from earlier games would give more stable strengths, but they are not in the openfootball data.
+\item \textbf{Small samples for the probability model.} Team strengths come from 6--12 earlier games. This is why the basic model is overconfident, and it limits any model based on goals. Shots or xG from earlier games would give more stable strengths, but they are not in the openfootball data.
 \item \textbf{xG is itself a model.} StatsBomb's xG values are estimates, and the simulation assumes that different possessions are independent.
 \end{itemize}
 
@@ -417,23 +392,23 @@ For Barcelona in 2015 the link is clear ($\rho = 0.65$, $p = 0.03$). Alves and M
 \section{Conclusion}\label{sec:conclusion}
 %=====================================================================
 
-\emph{How can the knowledge of probability and network theory help quantitatively and qualitatively analyse a football team?} Eight years later, my answer has three parts.
+\emph{How can the knowledge of probability and network theory help quantitatively and qualitatively analyse a football team?} The answer has three parts.
 
-\textbf{Network theory describes \emph{how} a team plays, but only if the mathematics matches the football.} Once more passes mean a shorter distance, the measures agree with what the pictures show. They also quantify things the eye can only guess at. Barcelona in 2011 were not a team without a centre. They were built around Xavi, whose removal would cost 14\% of their passing efficiency, far more than any other player on either side. In 2015 they had become a two-sided team, with Alves and Messi at its hub. Random-network comparisons and resampling show which patterns are real (the passing units, the concentration of passes on particular links, Xavi's role) and which are fragile (the order of Rooney and Ferdinand, or of Alves and Messi).
+\textbf{Network theory describes \emph{how} a team plays, provided the mathematics matches the football.} When more passes mean a shorter distance, the measures agree with what the pictures show. They also quantify things the eye can only guess at. Barcelona in 2011 looked like a collective, but they were built around Xavi, whose removal would cost 14\% of their passing efficiency, far more than any other player on either side. In 2015 they had become a two-sided team, with Alves and Messi at its hub. Random-network comparisons and resampling show which patterns are real (the passing units, the concentration of passes on particular links, Xavi's role) and which are fragile (the order of Rooney and Ferdinand, or of Alves and Messi).
 
-\textbf{A Poisson model of goals is a useful starting point, but on its own it is a weak forecaster.} Correctly applied and tested on \nKO{} matches, the model from the original essay does no better than the season's home, draw and away rates. Adding home advantage and fitting the model properly both help, but goals are too rare for a handful of earlier matches to reveal a team's true strength.
+\textbf{A Poisson model of goals is a useful starting point, but on its own it is a weak forecaster.} Tested on \nKO{} matches with only the information available beforehand, the basic attack--defence model does no better than the season's home, draw and away rates. Adding home advantage and fitting the model properly both help, but goals are too rare for a handful of earlier matches to reveal a team's true strength.
 
-\textbf{The two approaches are strongest together, joined by better data.} Expected goals measure the quality of chances rather than the number of goals. They show that Barcelona's control of the ball in 2011 turned into a dominant set of chances, and that the 2015 final was closer than 3--1 suggests. Linking players' network positions to the chances they helped create gives the first direct test of the 2018 essay's claim that the network explains the goals. For Barcelona in 2015, it did.
+\textbf{The two approaches are strongest together, joined by richer data.} Expected goals measure the quality of chances rather than the number of goals. They show that Barcelona's control of the ball in 2011 turned into a dominant set of chances, and that the 2015 final was closer than 3--1 suggests. Linking players' network positions to the chances they helped create tests whether passing structure explains attacking output. For Barcelona in 2015, it did.
 
-The 2018 essay ended by saying that ``more work needs to be done in this field for it to ultimately be proved successful''. This edition does some of that work. Its main lesson is the one I would give my eighteen-year-old self: understand what a formula or a software function assumes before trusting its output, and test a model on more than the examples it was built from.
+Network theory and probability do not replace watching football. They make precise what a good observer suspects, show when that suspicion is wrong, and put a number on how much a result owed to skill and how much to chance.
 
 %=====================================================================
-\section*{Reproducibility}\label{sec:reproducibility}
-\addcontentsline{toc}{section}{Reproducibility}
+\section*{Acknowledgements and reproducibility}\label{sec:reproducibility}
+\addcontentsline{toc}{section}{Acknowledgements and reproducibility}
 %=====================================================================
-All code is in the \texttt{recalc/} folder of the repository that accompanies this paper, and the tables are generated by \texttt{paper/make\_tables.py}. \texttt{recalculate.py} reproduces the 2018 values and computes the corrected measures. \texttt{network\_extra.py} contains the team measures, red-card test, passing units, random networks and bootstrap. \texttt{model\_check.py} runs the forecasting test. \texttt{statsbomb\_analysis.py} contains the event-data analysis; its data are downloaded by \texttt{fetch\_statsbomb.py}. Random seeds are fixed, so rerunning the scripts reproduces every number.
+All code is in the \texttt{recalc/} folder of the repository that accompanies this paper, and the tables are generated from it by \texttt{paper/make\_tables.py}. \texttt{recalculate.py} computes the player measures and the Poisson model for the finals. \texttt{network\_extra.py} contains the team measures, red-card test, passing units, random networks and bootstrap. \texttt{model\_check.py} runs the forecasting test. \texttt{statsbomb\_analysis.py} contains the event-data analysis; its data are downloaded by \texttt{fetch\_statsbomb.py}. Random seeds are fixed, so rerunning the scripts reproduces every number. The analysis was carried out with the help of Claude, an AI assistant made by Anthropic.
 
-\paragraph{Data acknowledgements.} Passing tables: Opta, as used in the 2018 essay. Event data: StatsBomb Open Data \cite{statsbomb}. StatsBomb asks that any published work using its data credits StatsBomb as the source and displays its logo. Match results: openfootball (public domain) \cite{openfootball}.
+\paragraph{Data.} Passing tables: Opta. Event data: StatsBomb Open Data \cite{statsbomb}; StatsBomb asks that any published work using its data credits StatsBomb as the source and displays its logo. Match results: openfootball (public domain) \cite{openfootball}.
 
 %=====================================================================
 \begin{thebibliography}{99}\small
@@ -457,7 +432,7 @@ All code is in the \texttt{recalc/} folder of the repository that accompanies th
 
 \appendix
 \section{Passing tables}\label{app:matrices}
-The four passing tables used throughout, transcribed from the 2018 essay (Opta).
+The four Opta passing tables used throughout.
 
 \input{generated/matrices.tex}
 

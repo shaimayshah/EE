@@ -1,4 +1,4 @@
-"""Does the essay's Poisson model actually predict Champions League matches?
+"""How well does a Poisson attack-defence model predict Champions League matches?
 
 Every knockout match from 2011/12 to 2023/24 is predicted using only the results
 of that season played before it (group stage + earlier knockout games), and the
@@ -96,7 +96,7 @@ def m_base_rates(train, m):
     return res, None
 
 
-def essay_lambdas(train, m, home_adv):
+def basic_lambdas(train, m, home_adv):
     s = team_rates(train)
     goals = sum(x["hg"] + x["ag"] for x in train)
     avg = goals / (2 * len(train))                 # one league average: scored = conceded
@@ -113,14 +113,14 @@ def essay_lambdas(train, m, home_adv):
     return avg_h * att_h * def_a, avg_a * att_a * def_h
 
 
-def m_essay(train, m):
-    lh, la = essay_lambdas(train, m, home_adv=False)
+def m_basic(train, m):
+    lh, la = basic_lambdas(train, m, home_adv=False)
     M = score_matrix(lh, la)
     return hda(M), M
 
 
-def m_essay_home(train, m):
-    lh, la = essay_lambdas(train, m, home_adv=True)
+def m_basic_home(train, m):
+    lh, la = basic_lambdas(train, m, home_adv=True)
     M = score_matrix(lh, la)
     return hda(M), M
 
@@ -181,8 +181,8 @@ def m_dixon_coles(train, m):
 MODELS = {
     "Guess 1/3 each": m_uniform,
     "Home/draw/away rates so far": m_base_rates,
-    "Essay's model (corrected averages)": m_essay,
-    "Essay's model + home advantage": m_essay_home,
+    "Basic Poisson model": m_basic,
+    "Basic Poisson + home advantage": m_basic_home,
     "Fitted Dixon–Coles model": m_dixon_coles,
 }
 
@@ -239,10 +239,10 @@ def calibration_figure(rows):
     fig, axes = plt.subplots(1, 2, figsize=(11, 5.2))
     fig.subplots_adjust(left=0.08, right=0.97, top=0.82, bottom=0.13, wspace=0.28)
     bins = np.linspace(0, 1, 6)
-    colours = {"Essay's model (corrected averages)": "#2a6fdb",
-               "Essay's model + home advantage": "#e08a1e",
+    colours = {"Basic Poisson model": "#2a6fdb",
+               "Basic Poisson + home advantage": "#e08a1e",
                "Fitted Dixon–Coles model": "#1a9e77"}
-    markers = {"Essay's model (corrected averages)": "o", "Essay's model + home advantage": "s",
+    markers = {"Basic Poisson model": "o", "Basic Poisson + home advantage": "s",
                "Fitted Dixon–Coles model": "^"}
     for ax, (col, label) in zip(axes, [(0, "home win"), (1, "draw")]):
         ax.plot([0, 1], [0, 1], color="#999", linewidth=1, linestyle="--", label="perfect calibration")
@@ -306,10 +306,10 @@ def main():
     for name in list(MODELS)[2:]:
         d, lo, hi = paired_ci(S[name]["rps"], S[base]["rps"])
         print(f"- {name} vs {base.lower()}: {d:+.4f} ({lo:+.4f} to {hi:+.4f})")
-    d, lo, hi = paired_ci(S["Essay's model + home advantage"]["rps"], S["Essay's model (corrected averages)"]["rps"])
-    print(f"- Adding home advantage to the essay's model: {d:+.4f} ({lo:+.4f} to {hi:+.4f})")
-    d, lo, hi = paired_ci(S["Fitted Dixon–Coles model"]["rps"], S["Essay's model + home advantage"]["rps"])
-    print(f"- Dixon–Coles vs essay's model + home advantage: {d:+.4f} ({lo:+.4f} to {hi:+.4f})")
+    d, lo, hi = paired_ci(S["Basic Poisson + home advantage"]["rps"], S["Basic Poisson model"]["rps"])
+    print(f"- Adding home advantage to the basic Poisson model: {d:+.4f} ({lo:+.4f} to {hi:+.4f})")
+    d, lo, hi = paired_ci(S["Fitted Dixon–Coles model"]["rps"], S["Basic Poisson + home advantage"]["rps"])
+    print(f"- Dixon–Coles vs basic Poisson + home advantage: {d:+.4f} ({lo:+.4f} to {hi:+.4f})")
     print()
 
     print("## Draws\n")

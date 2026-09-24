@@ -6,7 +6,6 @@ The StatsBomb tables need the data first:  python3 ../recalc/fetch_statsbomb.py
 import os
 import sys
 
-import networkx as nx
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +13,7 @@ RECALC = os.path.join(HERE, "..", "recalc")
 sys.path.insert(0, RECALC)
 os.chdir(RECALC)
 
-from data import ESSAY_RESULTS, TEAMS  # noqa: E402
+from data import TEAMS  # noqa: E402
 from recalculate import FINALS, corrected_metrics, lambdas, outcome, pois  # noqa: E402
 import network_extra as nx_extra  # noqa: E402
 import model_check as mc  # noqa: E402
@@ -48,7 +47,7 @@ def matrices():
         parts.append(f"""
 \\begin{{table}}[p]
 \\centering\\small\\setlength{{\\tabcolsep}}{{3.5pt}}
-\\caption{{Completed passes between starters, {short} (Opta, as used in the 2018 essay). Row = passer, column = receiver.}}
+\\caption{{Completed passes between starters, {short} (Opta). Row = passer, column = receiver.}}
 \\label{{tab:matrix-{KEYS.index(key)}}}
 \\begin{{tabular}}{{l*{{11}}{{r}}}}
 \\toprule
@@ -59,42 +58,6 @@ From / to & {head} \\\\
 \\end{{tabular}}
 \\end{{table}}""")
     write("matrices", "\n".join(parts))
-
-
-# --------------------------------------------------- 2018 reproduction table
-
-def reproduction():
-    names, A = TEAMS[KEYS[0]]
-    old = ESSAY_RESULTS[KEYS[0]]
-    G = nx.DiGraph()
-    for i in range(N):
-        for j in range(N):
-            if A[i][j]:
-                G.add_edge(i, j, w=A[i][j])
-    raw_clo = []
-    for v in range(N):
-        d = nx.single_source_dijkstra_path_length(G, v, weight="w")
-        raw_clo.append(10 / sum(d.values()))
-    unw_btw = nx.betweenness_centrality(G, normalized=False)
-    new = corrected_metrics(A)
-    rows = "\n".join(
-        f"{names[i]} & {old['closeness'][i]:.3f} & {raw_clo[i]:.3f} & {new['closeness'][i]:.2f} & "
-        f"{old['betweenness'][i]:.3f} & {unw_btw[i]:.3f} & {new['betweenness'][i]:.3f} \\\\" for i in range(N))
-    write("reproduction", f"""
-\\begin{{table}}[t]
-\\centering\\small
-\\caption{{Reproducing the 2018 results for Barça 2011. Closeness is reproduced exactly when the number of passes is used as a \\emph{{distance}}; betweenness is reproduced exactly when the weights are ignored. The corrected values use $d_{{xy}} = 1/A_{{xy}}$.}}
-\\label{{tab:reproduction}}
-\\begin{{tabular}}{{lrrrrrr}}
-\\toprule
- & \\multicolumn{{3}}{{c}}{{Closeness}} & \\multicolumn{{3}}{{c}}{{Betweenness}} \\\\
-\\cmidrule(lr){{2-4}}\\cmidrule(lr){{5-7}}
-Player & 2018 & passes as distance & corrected & 2018 & unweighted & corrected \\\\
-\\midrule
-{rows}
-\\bottomrule
-\\end{{tabular}}
-\\end{{table}}""")
 
 
 # ------------------------------------------------------ player centralities
@@ -275,16 +238,14 @@ Team & Top betweenness & Top PageRank & Top in red-card test \\\\
 def poisson_finals():
     rows = []
     for title, f in FINALS.items():
-        e = f["essay"]
         year = "2011" if "2010" in title else "2015"
         avg_a = f["comp_goals"] / (2 * f["comp_matches"])
         la_A, lb_A, _ = lambdas(f["a_scored"], f["a_conceded"], f["b_scored"], f["b_conceded"], 13, avg_a)
         avg_b = (f["comp_goals"] - 4) / (2 * (f["comp_matches"] - 1))
         la_B, lb_B, _ = lambdas(f["a_scored"] - 3, f["a_conceded"] - 1, f["b_scored"] - 1, f["b_conceded"] - 3,
                                 12, avg_b)
-        for name, avg, la, lb in (("2018 essay", e["avg_scored"], e["lam_a"], e["lam_b"]),
-                                  ("A: one league average", avg_a, la_A, lb_A),
-                                  ("B: A, final excluded", avg_b, la_B, lb_B)):
+        for name, avg, la, lb in (("Final included", avg_a, la_A, lb_A),
+                                  ("Final excluded", avg_b, la_B, lb_B)):
             w, d, l = outcome(la, lb)
             rows.append(f"{year} & {name} & {avg:.3f} & {la:.3f} & {lb:.3f} & {pct(w, 1)} & {pct(d, 1)} & "
                         f"{pct(l, 1)} & {pct(pois(la, 3) * pois(lb, 1), 2)} \\\\")
@@ -292,7 +253,7 @@ def poisson_finals():
     write("poisson_finals", f"""
 \\begin{{table}}[t]
 \\centering\\small
-\\caption{{The Poisson model for the two finals. $\\lambda_B$ is Barcelona's expected goals and $\\lambda_O$ the opponent's; win, draw and loss are from Barcelona's point of view, assuming independent Poisson scores.}}
+\\caption{{The Poisson model for the two finals. $\\bar g$ is the league average, $\\lambda_B$ Barcelona's expected goals and $\\lambda_O$ the opponent's. ``Final included'' estimates team strengths from all 13 games including the final itself; ``final excluded'' uses only the 12 games before it, which is the genuine forecast. Win, draw and loss are from Barcelona's point of view, assuming independent Poisson scores.}}
 \\label{{tab:poisson-finals}}
 \\begin{{tabular}}{{llrrrrrrr}}
 \\toprule
@@ -317,11 +278,11 @@ def model_check():
         lines.append(f"{name} & {s['rps'].mean():.4f} & {s['logloss'].mean():.3f} & {s['brier'].mean():.3f} & {fav} \\\\")
     base = "Home/draw/away rates so far"
     diffs = []
-    for a, b, lab in (("Essay's model (corrected averages)", base, "Essay's model $-$ base rates"),
-                      ("Essay's model + home advantage", base, "Essay's model + home $-$ base rates"),
+    for a, b, lab in (("Basic Poisson model", base, "Basic Poisson $-$ base rates"),
+                      ("Basic Poisson + home advantage", base, "Basic Poisson + home $-$ base rates"),
                       ("Fitted Dixon–Coles model", base, "Dixon--Coles $-$ base rates"),
-                      ("Essay's model + home advantage", "Essay's model (corrected averages)", "Adding home advantage"),
-                      ("Fitted Dixon–Coles model", "Essay's model + home advantage", "Dixon--Coles $-$ essay's model + home")):
+                      ("Basic Poisson + home advantage", "Basic Poisson model", "Adding home advantage"),
+                      ("Fitted Dixon–Coles model", "Basic Poisson + home advantage", "Dixon--Coles $-$ basic Poisson + home")):
         d, lo, hi = mc.paired_ci(S[a]["rps"], S[b]["rps"])
         diffs.append(f"{lab} & ${d:+.4f}$ & $[{lo:+.4f},\\ {hi:+.4f}]$ \\\\")
     draws = {name: np.mean([r[2][name][0][1] for r in rows]) for name in list(mc.MODELS)[2:]}
@@ -329,7 +290,7 @@ def model_check():
     with open(os.path.join(OUT, "modelcheck_facts.tex"), "w") as f:
         f.write(f"\\newcommand{{\\nKO}}{{{n}}}\n\\newcommand{{\\nSeasons}}{{{len(seasons)}}}\n"
                 f"\\newcommand{{\\nHome}}{{{counts[0]}}}\\newcommand{{\\nDraw}}{{{counts[1]}}}\\newcommand{{\\nAway}}{{{counts[2]}}}\n"
-                f"\\newcommand{{\\drawEssay}}{{{pct(draws['Essay' + chr(39) + 's model (corrected averages)'], 1)}}}\n"
+                f"\\newcommand{{\\drawBasic}}{{{pct(draws['Basic Poisson model'], 1)}}}\n"
                 f"\\newcommand{{\\drawDC}}{{{pct(draws['Fitted Dixon–Coles model'], 1)}}}\n"
                 f"\\newcommand{{\\drawActual}}{{{pct(counts[1] / n, 1)}}}\n")
     write("modelcheck", f"""
@@ -368,7 +329,7 @@ def statsbomb():
     write("sb_check", f"""
 \\begin{{table}}[t]
 \\centering\\small
-\\caption{{Opta passing tables (2018 essay) against StatsBomb event data: completed passes between starters, and the correlation between the two sources over all 110 possible passing links.}}
+\\caption{{Opta passing tables against StatsBomb event data: completed passes between starters, and the correlation between the two sources over all 110 possible passing links.}}
 \\label{{tab:sbcheck}}
 \\begin{{tabular}}{{lrrrr}}
 \\toprule
@@ -424,7 +385,7 @@ Team & Half & Passes & Final third & Top PageRank & Betweenness centralisation \
     write("sb_xg", f"""
 \\begin{{table}}[t]
 \\centering\\footnotesize\\setlength{{\\tabcolsep}}{{4pt}}
-\\caption{{Shots and expected goals (Barcelona first). The simulated probabilities replay every chance 100{{,}}000 times; the last column is the pre-match Poisson model (version B of Table~\\ref{{tab:poisson-finals}}).}}
+\\caption{{Shots and expected goals (Barcelona first). The simulated probabilities replay every chance 100{{,}}000 times; the last column is the pre-match Poisson forecast (final excluded, Table~\\ref{{tab:poisson-finals}}).}}
 \\label{{tab:xg}}
 \\begin{{tabular}}{{lrrrrrrrr}}
 \\toprule
@@ -469,7 +430,6 @@ Team & Highest xGChain & Highest xGBuildup & $\\rho$ & $p$ \\\\
 
 if __name__ == "__main__":
     matrices()
-    reproduction()
     centralities()
     global_table()
     red_card()

@@ -10,24 +10,24 @@ Lower is better for RPS, log loss and Brier score. **RPS** (ranked probability s
 |---|---|---|---|---|---|
 | Guess 1/3 each | 0.2454 | 1.099 | 0.667 | – | – |
 | Home/draw/away rates so far | 0.2329 | 1.041 | 0.627 | 48.0% | – |
-| Essay's model (corrected averages) | 0.2467 | 1.106 | 0.659 | 46.6% | 6.6% |
-| Essay's model + home advantage | 0.2350 | 1.071 | 0.634 | 48.8% | 6.8% |
+| Basic Poisson model | 0.2467 | 1.106 | 0.659 | 46.6% | 6.6% |
+| Basic Poisson + home advantage | 0.2350 | 1.071 | 0.634 | 48.8% | 6.8% |
 | Fitted Dixon–Coles model | 0.2211 | 1.015 | 0.606 | 53.4% | 6.3% |
 
 ### Differences in RPS (with 95% bootstrap interval)
 
 Negative = the first model is better. If the interval includes 0, the difference could be chance.
 
-- Essay's model (corrected averages) vs home/draw/away rates so far: +0.0138 (-0.0062 to +0.0350)
-- Essay's model + home advantage vs home/draw/away rates so far: +0.0022 (-0.0158 to +0.0213)
+- Basic Poisson model vs home/draw/away rates so far: +0.0138 (-0.0062 to +0.0350)
+- Basic Poisson + home advantage vs home/draw/away rates so far: +0.0022 (-0.0158 to +0.0213)
 - Fitted Dixon–Coles model vs home/draw/away rates so far: -0.0118 (-0.0208 to -0.0017)
-- Adding home advantage to the essay's model: -0.0116 (-0.0180 to -0.0053)
-- Dixon–Coles vs essay's model + home advantage: -0.0139 (-0.0243 to -0.0038)
+- Adding home advantage to the basic Poisson model: -0.0116 (-0.0180 to -0.0053)
+- Dixon–Coles vs basic Poisson + home advantage: -0.0139 (-0.0243 to -0.0038)
 
 ## Draws
 
-- Essay's model (corrected averages): predicts 24.0% draws on average; actual 19.4%.
-- Essay's model + home advantage: predicts 24.0% draws on average; actual 19.4%.
+- Basic Poisson model: predicts 24.0% draws on average; actual 19.4%.
+- Basic Poisson + home advantage: predicts 24.0% draws on average; actual 19.4%.
 - Fitted Dixon–Coles model: predicts 26.2% draws on average; actual 19.4%.
 
 ## Calibration
@@ -42,7 +42,7 @@ Juventus (ITA) v FC Barcelona (ESP): actual 1-3 (Barcelona won 3-1).
 |---|---|---|---|---|
 | Guess 1/3 each | 33.3% | 33.3% | 33.3% | – |
 | Home/draw/away rates so far | 38.7% | 22.6% | 38.7% | – |
-| Essay's model (corrected averages) | 28.4% | 33.5% | 38.1% | 2.0% |
-| Essay's model + home advantage | 28.4% | 33.5% | 38.1% | 2.0% |
+| Basic Poisson model | 28.4% | 33.5% | 38.1% | 2.0% |
+| Basic Poisson + home advantage | 28.4% | 33.5% | 38.1% | 2.0% |
 | Fitted Dixon–Coles model | 26.7% | 32.1% | 41.2% | 2.8% |
 
