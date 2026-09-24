@@ -139,6 +139,8 @@ def short(name):
              "Dayotchanculle Upamecano": "Upamecano",
              "Ángel Fabián Di María Hernández": "Di María",
              "Lautaro Javier Martínez": "Lautaro Martínez",
+             "Nahuel Molina Lucero": "Molina",
+             "Enzo Fernandez": "Enzo Fernández",
              "Cristiano Ronaldo dos Santos Aveiro": "Ronaldo"}
     return known.get(name, name if len(name) <= 22 else " ".join(name.split()[:2]))
 
