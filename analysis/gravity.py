@@ -44,7 +44,11 @@ def load_actions():
     for path in sorted(glob.glob(f"{DATA}/events/*.json")):
         mid = int(os.path.basename(path)[:-5])
         frames = {f["event_uuid"]: f for f in json.load(open(f"{DATA}/three-sixty/{mid}.json"))}
-        for e in json.load(open(path)):
+        events = json.load(open(path))
+        # Link each ball receipt back to the pass that found it.
+        pass_for = {r: e for e in events if e["type"]["name"] == "Pass"
+                    for r in e.get("related_events", [])}
+        for e in events:
             if e["type"]["name"] not in ON_BALL or "location" not in e or not is_open_play(e):
                 continue
             f = frames.get(e["id"])
@@ -69,7 +73,14 @@ def load_actions():
                 "x": x,
                 "y": y,
                 "nearest_opp": min(dists) if dists else np.nan,
+                "passer": None,
+                "pass_height": None,
+                "pass_length": np.nan,
             }
+            p = pass_for.get(e["id"])
+            if e["type"]["name"] == "Ball Receipt*" and p is not None:
+                row.update(passer=p["player"]["name"], pass_height=p["pass"]["height"]["name"],
+                           pass_length=p["pass"]["length"])
             for r in RADII:
                 row[f"opp_{r}"] = sum(d < r for d in dists)
                 # Only trust the count if the camera saw the whole circle.
@@ -117,6 +128,17 @@ def short(name):
     known = {"Lionel Andrés Messi Cuccittini": "Messi", "Kylian Mbappé Lottin": "Mbappé",
              "Neymar da Silva Santos Junior": "Neymar",
              "Joel Nathaniel Campbell Samuels": "Joel Campbell",
+             "Bernardo Mota Veiga de Carvalho e Silva": "Bernardo Silva",
+             "Theo Bernard François Hernández": "Theo Hernández",
+             "Rúben Santos Gato Alves Dias": "Rúben Dias",
+             "Rúben Diogo Da Silva Neves": "Rúben Neves",
+             "Nicolás Hernán Otamendi": "Otamendi",
+             "Rodrigo Hernández Cascante": "Rodri",
+             "Marcos Aoás Corrêa": "Marquinhos",
+             "Kléper Laveran Lima Ferreira": "Pepe",
+             "Dayotchanculle Upamecano": "Upamecano",
+             "Ángel Fabián Di María Hernández": "Di María",
+             "Lautaro Javier Martínez": "Lautaro Martínez",
              "Cristiano Ronaldo dos Santos Aveiro": "Ronaldo"}
     return known.get(name, name if len(name) <= 22 else " ".join(name.split()[:2]))
 
