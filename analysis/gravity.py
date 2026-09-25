@@ -18,8 +18,12 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 
-DATA = "data/wc2022"
-OUT = "output"
+# Point the whole pipeline at another competition with env vars, e.g.
+#   SB_DATA=data/laliga/90 SB_OUT=output/laliga_2021 SB_LABEL="La Liga 2020/21" SB_TEAM=Barcelona
+DATA = os.environ.get("SB_DATA", "data/wc2022")
+OUT = os.environ.get("SB_OUT", "output")
+LABEL = os.environ.get("SB_LABEL", "World Cup 2022")
+TEAM = os.environ.get("SB_TEAM", "Argentina")
 RADII = (3, 5, 10)
 ON_BALL = {"Pass", "Carry", "Ball Receipt*", "Dribble", "Shot"}
 SET_PIECE_PASSES = {"Corner", "Free Kick", "Throw-in", "Kick Off", "Goal Kick"}
@@ -162,7 +166,7 @@ def plot_leaderboard(lb, r, path, top=25):
     ax.set_yticks(range(len(t)), [f"{short(p)} ({tm})" for p, tm in zip(t.player, t.team)], fontsize=8)
     ax.axvline(0, color="#333", lw=0.8)
     ax.set_xlabel(f"Gravity: extra opponents within {r} units vs. expected for zone & action")
-    ax.set_title(f"World Cup 2022 gravity leaderboard (top {top}, ≥{MIN_ACTIONS} actions)\n"
+    ax.set_title(f"{LABEL} gravity leaderboard (top {top}, ≥{MIN_ACTIONS} actions)\n"
                  "error bars: 95% bootstrap CI over matches", fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=150)

@@ -1,5 +1,5 @@
 data/
 .venv/
-output/actions.csv.gz
 __pycache__/
-output/passes.csv.gz
+**/actions.csv.gz
+**/passes.csv.gz

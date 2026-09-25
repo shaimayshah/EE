@@ -82,47 +82,77 @@ def minutes_played(events, lineups):
     return mins
 
 
+def add_creation(events, creation):
+    """Add one match's key passes, xA, xGChain and xGBuildup (non-penalty) to `creation`."""
+    by_id = {e["id"]: e for e in events}
+    shots = [e for e in events if e["type"]["name"] == "Shot" and e["shot"]["type"]["name"] != "Penalty"]
+    poss_xg = collections.Counter()
+    for s in shots:
+        poss_xg[s["possession"]] += s["shot"]["statsbomb_xg"]
+    touched = collections.defaultdict(set)
+    finishers = collections.defaultdict(set)
+    for e in events:
+        if e["type"]["name"] in TOUCH and "player" in e and e["team"]["name"] == e["possession_team"]["name"]:
+            touched[e["possession"]].add((e["player"]["name"], e["team"]["name"]))
+    for s in shots:
+        key = (s["player"]["name"], s["team"]["name"])
+        finishers[s["possession"]].add(key)
+        creation[key]["npxg"] += s["shot"]["statsbomb_xg"]
+        creation[key]["np_goals"] += int(s["shot"]["outcome"]["name"] == "Goal")
+        kp = by_id.get(s["shot"].get("key_pass_id"))
+        if kp:
+            finishers[s["possession"]].add((kp["player"]["name"], kp["team"]["name"]))
+            c = creation[(kp["player"]["name"], kp["team"]["name"])]
+            c["key_passes"] += 1
+            c["xa"] += s["shot"]["statsbomb_xg"]
+            c["open_play_kp"] += int(gravity.is_open_play(kp))
+            c["assists"] += int(s["shot"]["outcome"]["name"] == "Goal")
+    for poss, xg in poss_xg.items():
+        for key in touched[poss]:
+            creation[key]["xgchain"] += xg
+            if key not in finishers[poss]:
+                creation[key]["xgbuildup"] += xg
+    return shots
+
+
+def decoy_rows(shots, mid):
+    """Opponents within R of every attacking outfield player in each shot freeze frame (names known)."""
+    decoys, shot_rows = [], []
+    for s in shots:
+        ff = s["shot"].get("freeze_frame")
+        if not ff:
+            continue
+        opps = [p["location"] for p in ff if not p["teammate"] and p["position"]["name"] != "Goalkeeper"]
+        messi_near = np.nan
+        for p in ff:
+            if not p["teammate"] or p["position"]["name"] == "Goalkeeper":
+                continue
+            px, py = p["location"]
+            n = sum(math.dist(o, (px, py)) < R for o in opps)
+            decoys.append({"match_id": mid, "player": p["player"]["name"], "team": s["team"]["name"],
+                           "x": px, "y": py, "opp_5": n})
+            if p["player"]["name"] == MESSI:
+                messi_near = n
+        sx, sy = s["location"]
+        shot_rows.append({"match_id": mid, "team": s["team"]["name"], "shooter": s["player"]["name"],
+                          "xg": s["shot"]["statsbomb_xg"], "x": sx, "y": sy,
+                          "messi_in_frame": not np.isnan(messi_near), "messi_opp_5": messi_near,
+                          "opp_near_shooter": sum(math.dist(o, (sx, sy)) < R for o in opps)})
+    return decoys, shot_rows
+
+
 def load():
     mins = collections.Counter()
-    creation = collections.defaultdict(lambda: collections.Counter())
-    pass_rows, decoy_rows, shot_rows = [], [], []
+    creation = collections.defaultdict(collections.Counter)
+    pass_rows, decoys, shot_rows = [], [], []
     for path in sorted(glob.glob(f"{DATA}/events/*.json")):
         mid = int(os.path.basename(path)[:-5])
         events = [e for e in json.load(open(path)) if e["period"] <= 4]
-        lineups = json.load(open(f"{DATA}/lineups/{mid}.json"))
-        mins.update(minutes_played(events, lineups))
-        frames = {f["event_uuid"]: f for f in json.load(open(f"{DATA}/three-sixty/{mid}.json"))}
-        by_id = {e["id"]: e for e in events}
-
-        shots = [e for e in events if e["type"]["name"] == "Shot" and e["shot"]["type"]["name"] != "Penalty"]
-        poss_xg = collections.Counter()
-        for s in shots:
-            poss_xg[s["possession"]] += s["shot"]["statsbomb_xg"]
-
-        # xGChain / xGBuildup
-        touched = collections.defaultdict(set)
-        finishers = collections.defaultdict(set)
-        for e in events:
-            if e["type"]["name"] in TOUCH and "player" in e and e["team"]["name"] == e["possession_team"]["name"]:
-                touched[e["possession"]].add((e["player"]["name"], e["team"]["name"]))
-        for s in shots:
-            key = (s["player"]["name"], s["team"]["name"])
-            finishers[s["possession"]].add(key)
-            kp = by_id.get(s["shot"].get("key_pass_id"))
-            if kp:
-                finishers[s["possession"]].add((kp["player"]["name"], kp["team"]["name"]))
-                c = creation[(kp["player"]["name"], kp["team"]["name"])]
-                c["key_passes"] += 1
-                c["xa"] += s["shot"]["statsbomb_xg"]
-                c["open_play_kp"] += int(gravity.is_open_play(kp))
-                c["assists"] += int(s["shot"]["outcome"]["name"] == "Goal")
-        for poss, xg in poss_xg.items():
-            for key in touched[poss]:
-                creation[key]["xgchain"] += xg
-                if key not in finishers[poss]:
-                    creation[key]["xgbuildup"] += xg
+        mins.update(minutes_played(events, json.load(open(f"{DATA}/lineups/{mid}.json"))))
+        shots = add_creation(events, creation)
 
         # Passes from a 360 frame: did they lead straight to a shot?
+        frames = {f["event_uuid"]: f for f in json.load(open(f"{DATA}/three-sixty/{mid}.json"))}
         for e in events:
             if e["type"]["name"] != "Pass" or not gravity.is_open_play(e) or e["id"] not in frames:
                 continue
@@ -134,29 +164,10 @@ def load():
                 "complete": "outcome" not in e["pass"],
                 "key_pass": bool(e["pass"].get("shot_assist") or e["pass"].get("goal_assist")),
             })
-
-        # Decoy: every attacking outfield player in a shot freeze frame except the shooter.
-        for s in shots:
-            ff = s["shot"].get("freeze_frame")
-            if not ff:
-                continue
-            opps = [p["location"] for p in ff if not p["teammate"] and p["position"]["name"] != "Goalkeeper"]
-            messi_near = np.nan
-            for p in ff:
-                if not p["teammate"] or p["position"]["name"] == "Goalkeeper":
-                    continue
-                px, py = p["location"]
-                n = sum(math.dist(o, (px, py)) < R for o in opps)
-                decoy_rows.append({"match_id": mid, "player": p["player"]["name"], "team": s["team"]["name"],
-                                   "x": px, "y": py, "opp_5": n})
-                if p["player"]["name"] == MESSI:
-                    messi_near = n
-            sx, sy = s["location"]
-            shot_rows.append({"match_id": mid, "team": s["team"]["name"], "shooter": s["player"]["name"],
-                              "xg": s["shot"]["statsbomb_xg"], "x": sx, "y": sy,
-                              "messi_in_frame": not np.isnan(messi_near), "messi_opp_5": messi_near,
-                              "opp_near_shooter": sum(math.dist(o, (sx, sy)) < R for o in opps)})
-    return mins, creation, pd.DataFrame(pass_rows), pd.DataFrame(decoy_rows), pd.DataFrame(shot_rows)
+        d, sr = decoy_rows(shots, mid)
+        decoys += d
+        shot_rows += sr
+    return mins, creation, pd.DataFrame(pass_rows), pd.DataFrame(decoys), pd.DataFrame(shot_rows)
 
 
 def per90(mins, creation):
@@ -271,7 +282,7 @@ def plot(p90, passes, path):
     a2.set_ylabel("Open-play passes that set up a shot")
     a2.set_title(f"Creating from inside the crowd ({R}-unit radius)", fontsize=10, loc="left")
     a2.legend(fontsize=8, frameon=False, loc="upper left")
-    fig.suptitle("Messi's chance creation, World Cup 2022 (non-penalty xG; right panel: open-play passes with a 360 frame)",
+    fig.suptitle(f"Messi's chance creation, {gravity.LABEL} (non-penalty xG; right panel: open-play passes with a 360 frame)",
                  fontsize=11, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor="#fcfcfb")
@@ -309,10 +320,10 @@ def main():
     print(f"Messi off the ball: {r.actual:.2f} opponents within {R} vs expected {r.actual - r.value:.2f} "
           f"-> {r.value:+.2f} [{r.ci_low:+.2f}, {r.ci_high:+.2f}], rank {r.name}/{len(b)} (n={r.n})")
     print(b.head(8)[["player", "team", "n", "actual", "value", "ci_low", "ci_high"]].round(2).to_string())
-    a = shots[(shots.team == "Argentina") & (shots.shooter != MESSI) & shots.messi_in_frame]
+    a = shots[(shots.team == gravity.TEAM) & (shots.shooter != MESSI) & shots.messi_in_frame]
     for lo, hi, lab in [(0, 0, "0"), (1, 1, "1"), (2, 99, "2+")]:
         g = a[a.messi_opp_5.between(lo, hi)]
-        print(f"  Argentina teammate shots with {lab} opponents near Messi: n={len(g)}, mean xG {g.xg.mean():.3f}, "
+        print(f"  {gravity.TEAM} teammate shots with {lab} opponents near Messi: n={len(g)}, mean xG {g.xg.mean():.3f}, "
               f"opponents within {R} of shooter {g.opp_near_shooter.mean():.2f}")
 
     p90.to_csv(f"{OUT}/chance_creation_per90.csv", index=False)

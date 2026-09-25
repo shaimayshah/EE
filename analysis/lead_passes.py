@@ -176,7 +176,7 @@ def plot(df, path):
     a2.set_ylabel("Space gain: nearest defender at receipt − at pass (units)")
     a2.set_title("Does the receiver end up with more room?", fontsize=10, loc="left")
     a2.legend(fontsize=8, frameon=False)
-    fig.suptitle("Weight and timing: Messi's completed passes, World Cup 2022", fontsize=11, x=0.01, ha="left")
+    fig.suptitle(f"Weight and timing: Messi's completed passes, {gravity.LABEL}", fontsize=11, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(path, dpi=150, facecolor="#fcfcfb")
     plt.close(fig)

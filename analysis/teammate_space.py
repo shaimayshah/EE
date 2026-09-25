@@ -73,7 +73,7 @@ def passer_board(d, rng):
 
 def within_receiver(d, min_n=10):
     """Same Argentina receiver: space from Messi's passes minus space from everyone else's."""
-    a = d[d.team == "Argentina"].assign(from_messi=lambda x: x.passer == MESSI)
+    a = d[d.team == gravity.TEAM].assign(from_messi=lambda x: x.passer == MESSI)
     rows = []
     for rcv, g in a.groupby("player"):
         m, o = g[g.from_messi], g[~g.from_messi]
@@ -87,7 +87,7 @@ def within_receiver(d, min_n=10):
 
 
 def within_receiver_ci(d, rng, n_boot=1000):
-    a = d[d.team == "Argentina"]
+    a = d[d.team == gravity.TEAM]
     by_match = [g for _, g in a.groupby("match_id")]
     res = []
     for _ in range(n_boot):
@@ -103,11 +103,11 @@ def plot_scatter(merged, path):
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    arg = merged.team == "Argentina"
+    arg = merged.team == gravity.TEAM
     ax.scatter(merged.gravity[~arg], merged.bonus_opp[~arg], s=14, color="#9aa0a6", label="other players")
-    ax.scatter(merged.gravity[arg], merged.bonus_opp[arg], s=24, color="#75AADB", label="Argentina")
+    ax.scatter(merged.gravity[arg], merged.bonus_opp[arg], s=24, color="#75AADB", label=gravity.TEAM)
     for _, r in merged.iterrows():
-        if r.player == MESSI or r.gravity > 0.3 or r.bonus_opp > 0.12 or (r.team == "Argentina" and r.gravity > 0.15):
+        if r.player == MESSI or r.gravity > 0.3 or r.bonus_opp > 0.12 or (r.team == gravity.TEAM and r.gravity > 0.15):
             ax.annotate(gravity.short(r.player), (r.gravity, r.bonus_opp), fontsize=7,
                         xytext=(3, 3), textcoords="offset points",
                         weight="bold" if r.player == MESSI else "normal")
@@ -119,7 +119,7 @@ def plot_scatter(merged, path):
     ax.axvline(0, color="#ccc", lw=0.8)
     ax.set_xlabel("Gravity: extra opponents around the player on the ball (step 2)")
     ax.set_ylabel("Space created: fewer opponents around the teammate receiving their pass")
-    ax.set_title("Does drawing defenders free up teammates? (World Cup 2022)", fontsize=11)
+    ax.set_title(f"Does drawing defenders free up teammates? ({gravity.LABEL})", fontsize=11)
     ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -170,11 +170,11 @@ def main():
         print(f"Messi rank by {col}: {rank:.0f}/{len(b)}")
     with pd.option_context("display.width", 200):
         print(b.head(15).round(3).to_string())
-        print("\nArgentina passers:")
-        print(b[b.team == "Argentina"].round(3).to_string())
+        print(f"\n{gravity.TEAM} passers:")
+        print(b[b.team == gravity.TEAM].round(3).to_string())
 
     w, avg_opp, avg_near = within_receiver(d)
-    print("\nSame receiver, from Messi vs from other Argentina passers:")
+    print(f"\nSame receiver, from Messi vs from other {gravity.TEAM} passers:")
     print(w.round(3).to_string(index=False))
     ci = within_receiver_ci(d, rng)
     print(f"weighted avg: {avg_opp:+.3f} [{ci[0,0]:+.3f}, {ci[1,0]:+.3f}] defenders, "

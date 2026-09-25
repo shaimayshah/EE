@@ -47,7 +47,7 @@ def messi_passes():
     for path in sorted(glob.glob(f"{DATA}/events/*.json")):
         mid = int(os.path.basename(path)[:-5])
         m = matches[mid]
-        if "Argentina" not in (m["home_team"]["home_team_name"], m["away_team"]["away_team_name"]):
+        if gravity.TEAM not in (m["home_team"]["home_team_name"], m["away_team"]["away_team_name"]):
             continue
         events = json.load(open(path))
         by_id = {e["id"]: e for e in events}
@@ -65,7 +65,7 @@ def messi_passes():
             rx, ry = rec["location"]
             d_messi = opp_dists(frames[e["id"]], x, y)
             d_rec = opp_dists(frames[rec["id"]], rx, ry)
-            opponent = (m["away_team"]["away_team_name"] if m["home_team"]["home_team_name"] == "Argentina"
+            opponent = (m["away_team"]["away_team_name"] if m["home_team"]["home_team_name"] == gravity.TEAM
                         else m["home_team"]["home_team_name"])
             out.append({
                 "event": e, "frame": frames[e["id"]], "receipt": rec,
@@ -136,7 +136,7 @@ def draw_moment(ax, mo):
 def legend(fig):
     h = [
         plt.Line2D([], [], marker="*", ls="", color=ARG, markeredgecolor=INK, ms=12, label="Messi (on the ball)"),
-        plt.Line2D([], [], marker="o", ls="", color=ARG, ms=7, label="Argentina"),
+        plt.Line2D([], [], marker="o", ls="", color=ARG, ms=7, label=gravity.TEAM),
         plt.Line2D([], [], marker="s", ls="", color=OPP, ms=7, label="Opponent"),
         plt.Line2D([], [], ls="--", color=INK_2, label=f"{R}-unit radius around Messi"),
         plt.Rectangle((0, 0), 1, 1, color="#f0efec", label="Area the camera could see"),
@@ -170,7 +170,7 @@ def main():
         draw_moment(ax, mo)
     for ax in list(axes.flat)[len(moments):]:
         ax.axis("off")
-    fig.suptitle("Messi's gravity in 360 freeze frames: defenders around him at the moment he passes (World Cup 2022)",
+    fig.suptitle(f"Messi's gravity in 360 freeze frames: defenders around him at the moment he passes ({gravity.LABEL})",
                  fontsize=13, color=INK, x=0.01, ha="left")
     legend(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 0.97))

@@ -210,11 +210,11 @@ def plot_difficulty(s, path):
 
     fig, ax = plt.subplots(figsize=(8.5, 6.5), facecolor="#fcfcfb")
     ax.set_facecolor("#fcfcfb")
-    arg = s.team == "Argentina"
+    arg = s.team == gravity.TEAM
     messi = s.player == MESSI
     ax.scatter(s.difficulty[~arg], s.cae[~arg], s=16, color="#9aa0a6", label="other players", zorder=2)
     ax.scatter(s.difficulty[arg & ~messi], s.cae[arg & ~messi], s=24, color="#2a78d6", alpha=.55,
-               label="Argentina", zorder=3)
+               label=gravity.TEAM, zorder=3)
     ax.scatter(s.difficulty[messi], s.cae[messi], s=140, marker="*", color="#2a78d6", edgecolor="#0b0b0b",
                zorder=4, label="Messi")
     top = s.assign(score=s.difficulty.rank(pct=True) + s.cae.rank(pct=True)).nlargest(5, "score")
@@ -228,7 +228,7 @@ def plot_difficulty(s, path):
     ax.set_xlabel("Average pass difficulty (1 − xPass)  →  harder passes")
     ax.set_ylabel("Completion above expected (actual − xPass)  →  better")
     ax.set_title(f"How hard are the passes, and how well are they completed?\n"
-                 f"World Cup 2022, open play, players with ≥{MIN_PASSES} passes with a 360 frame",
+                 f"{gravity.LABEL}, open play, players with ≥{MIN_PASSES} passes with a 360 frame",
                  fontsize=10, loc="left")
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
